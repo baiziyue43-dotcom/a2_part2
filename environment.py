@@ -149,28 +149,38 @@ class WumpusWorldEnvironment(gym.Env):
                     'Refer to the assignment problem statement on environment details.')
 
     def step(self, action):
-        """This method implements what happens when the agent takes a particular action. It changes the agent's
-        position (While not allowing it to go out of the environment space.), maps the environment co-ordinates to a
-        state, defines the rewards for the various states, and determines when the episode ends.
-
-        :param action: - Action taken by the agent (Type depends on the parameter action_type).
-
-        :returns observation: - Observation received by the agent (Type depends on the parameter observation_type).
-                 int reward: - Integer value that's used to measure the performance of the agent.
-                 bool done: - Boolean describing whether the episode has ended.
-                 dict info: - A dictionary that can be used to provide additional implementation information."""
-
         self.take_action(action)
-
-        # Ensuring that the agent doesn't go out of the environment.
         self.agent_pos = np.clip(self.agent_pos, a_min=[0, 0],
-                                 a_max=[self.environment_width - 1, self.environment_height - 1])
-
+                            a_max=[self.environment_width - 1, self.environment_height - 1])
+    
         observation = self.return_observation()
-
-        reward, terminated, truncated = None, None, None
+    
+        # 定义奖励
+        reward = -1  # Default penalty (encourages finding gold quickly)
+        terminated = False
+        truncated = False
+    
+        # 检查是否踩到坑
+        if any(np.array_equal(self.agent_pos, pit) for pit in self.pit_pos):
+            reward = -100
+            terminated = True
+    
+        # 检查是否遇到 Wumpus
+        elif np.array_equal(self.agent_pos, self.wumpus_pos):
+            reward = -100
+            terminated = True
+    
+        # 检查是否捡到金子
+        elif np.array_equal(self.agent_pos, self.gold_pos) and self.gold_quantity > 0:
+            reward = 100
+            self.gold_quantity = 0
+    
+        # 检查时间步限制
+        self.timesteps += 1
+        if self.timesteps >= self.max_timesteps:
+            truncated = True
+    
         info = {}
-
         return observation, reward, terminated, truncated, info
 
     def render(self, mode='human', plot=False):
